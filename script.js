@@ -173,11 +173,51 @@ let userProgress = JSON.parse(localStorage.getItem('petProgress')) || {
     daysSinceAdoption: 0,
 };
 
+// Add pet personalities
+const PET_PERSONALITIES = {
+    playful: {
+        traits: ['energetic', 'fun-loving', 'social'],
+        moodEmojis: ['😊', '😄', '🤪'],
+        phrases: [
+            "Let's play!",
+            "That was fun!",
+            "Can we do that again?"
+        ]
+    },
+    shy: {
+        traits: ['quiet', 'gentle', 'careful'],
+        moodEmojis: ['🥺', '😊', '😌'],
+        phrases: [
+            "Hello...",
+            "That was nice",
+            "Thank you for being gentle"
+        ]
+    },
+    // Add more personalities...
+};
+
+// Add mini-games
+const MINI_GAMES = {
+    catchBall: {
+        name: "Catch the Ball",
+        description: "Help your pet catch falling balls!",
+        reward: 50
+    },
+    findTreat: {
+        name: "Find the Treat",
+        description: "Guide your pet to hidden treats!",
+        reward: 30
+    }
+    // Add more mini-games...
+};
+
 document.addEventListener("DOMContentLoaded", () => {
     loadSavedState();
     renderAchievements();
     renderPetSelection();
     updatePointsDisplay();
+    showWelcomeMessage();
+    showTutorial();
 });
 
 function loadSavedState() {
@@ -323,18 +363,22 @@ function performTask(taskKey) {
         task.affects.forEach(stat => {
             updateStat(stat, 10 + Math.floor(Math.random() * 10));
         });
-        petState.experience += task.difficulty * 5;
-        checkLevelUp();
-        showNotification(`${PETS[selectedPet].name} enjoyed the ${task.name}!`);
+        
+        // Add personality-based responses
+        const personality = PET_PERSONALITIES[PETS[selectedPet].personality];
+        const phrase = personality.phrases[Math.floor(Math.random() * personality.phrases.length)];
+        showPetSpeech(phrase);
+        
+        // Chance to trigger mini-game
+        if (Math.random() < 0.2) {
+            triggerMiniGame();
+        }
     } else {
-        showNotification(`${PETS[selectedPet].name} didn't enjoy the ${task.name} this time.`);
+        showPetSpeech("Maybe we can try something else?");
     }
-
-    petState.energy = Math.max(0, petState.energy - (task.difficulty * 5));
-    updateLastActivity();
-    renderStatusBars();
+    
+    updatePetMood();
     checkAchievements();
-    checkPetHealth();
 }
 
 function updateStat(stat, amount) {
@@ -495,4 +539,91 @@ function checkPetHealth() {
             button.disabled = button.textContent.trim() !== 'Vet Check';
         });
     }
+}
+
+// Add welcome message function
+function showWelcomeMessage() {
+    const welcomeDiv = document.getElementById('welcome-message');
+    const timeOfDay = new Date().getHours();
+    let greeting = '';
+    
+    if (timeOfDay < 12) greeting = 'Good morning';
+    else if (timeOfDay < 18) greeting = 'Good afternoon';
+    else greeting = 'Good evening';
+    
+    welcomeDiv.innerHTML = `
+        <h2>${greeting}, Pet Parent!</h2>
+        <p>Ready to create some wonderful memories with your virtual pet?</p>
+    `;
+}
+
+// Add tutorial function
+function showTutorial() {
+    if (!localStorage.getItem('tutorialShown')) {
+        const tutorial = document.getElementById('tutorial-overlay');
+        tutorial.classList.remove('hidden');
+        tutorial.innerHTML = `
+            <div class="tutorial-content">
+                <h2>Welcome to Virtual Pet Companion!</h2>
+                <p>Let's learn how to take care of your new friend:</p>
+                <ol>
+                    <li>Choose a pet that matches your style</li>
+                    <li>Keep them happy by playing and feeding them</li>
+                    <li>Earn achievements and unlock new pets!</li>
+                </ol>
+                <button class="button" onclick="closeTutorial()">Got it!</button>
+            </div>
+        `;
+        localStorage.setItem('tutorialShown', 'true');
+    }
+}
+
+function closeTutorial() {
+    document.getElementById('tutorial-overlay').classList.add('hidden');
+}
+
+// Modify pet interaction
+function updatePetMood() {
+    const moodElement = document.getElementById('pet-mood');
+    const averageStats = Object.values(petState).reduce((a, b) => a + b, 0) / Object.keys(petState).length;
+    
+    let mood;
+    if (averageStats > 80) mood = '😊';
+    else if (averageStats > 60) mood = '😐';
+    else if (averageStats > 40) mood = '😕';
+    else mood = '😢';
+    
+    moodElement.textContent = mood;
+}
+
+function showPetSpeech(message) {
+    const speechBubble = document.getElementById('pet-speech-bubble');
+    speechBubble.textContent = message;
+    speechBubble.classList.remove('hidden');
+    
+    setTimeout(() => {
+        speechBubble.classList.add('hidden');
+    }, 3000);
+}
+
+// Add mini-game function
+function triggerMiniGame() {
+    const miniGames = document.getElementById('mini-games');
+    const game = Object.values(MINI_GAMES)[Math.floor(Math.random() * Object.values(MINI_GAMES).length)];
+    
+    miniGames.classList.remove('hidden');
+    miniGames.innerHTML = `
+        <h3>${game.name}</h3>
+        <p>${game.description}</p>
+        <button class="button" onclick="playMiniGame('${game.name}')">Play!</button>
+    `;
+}
+
+function playMiniGame(gameName) {
+    // Implement mini-game logic here
+    // For now, just give rewards
+    userProgress.points += MINI_GAMES[gameName].reward;
+    updatePointsDisplay();
+    showNotification(`You earned ${MINI_GAMES[gameName].reward} points!`);
+    document.getElementById('mini-games').classList.add('hidden');
 }
