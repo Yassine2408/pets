@@ -3,38 +3,59 @@ const PETS = {
     cat: {
         name: 'Cat',
         description: 'Independent and graceful. Needs less attention but regular feeding.',
-        baseStats: { hunger: 90, cleanliness: 95, happiness: 85 },
+        baseStats: { hunger: 90, cleanliness: 95, happiness: 85, energy: 70 },
         difficultyLevel: 1,
         unlockRequirement: 0,
     },
     dog: {
         name: 'Dog',
         description: 'Loyal and energetic. Needs frequent play and attention.',
-        baseStats: { hunger: 80, cleanliness: 75, happiness: 95 },
+        baseStats: { hunger: 80, cleanliness: 75, happiness: 95, energy: 90 },
         difficultyLevel: 2,
         unlockRequirement: 0,
     },
     rabbit: {
         name: 'Rabbit',
         description: 'Gentle and quiet. Needs regular feeding and cleaning.',
-        baseStats: { hunger: 85, cleanliness: 90, happiness: 80 },
+        baseStats: { hunger: 85, cleanliness: 90, happiness: 80, energy: 75 },
         difficultyLevel: 2,
         unlockRequirement: 100,
     },
     dragon: {
         name: 'Dragon',
         description: 'Magical and challenging. High maintenance but very rewarding.',
-        baseStats: { hunger: 70, cleanliness: 70, happiness: 70 },
+        baseStats: { hunger: 70, cleanliness: 70, happiness: 70, energy: 85 },
         difficultyLevel: 4,
         unlockRequirement: 300,
     },
     unicorn: {
         name: 'Unicorn',
         description: 'Majestic and rare. Requires special care and attention.',
-        baseStats: { hunger: 75, cleanliness: 95, happiness: 90 },
+        baseStats: { hunger: 75, cleanliness: 95, happiness: 90, energy: 80 },
         difficultyLevel: 3,
         unlockRequirement: 200,
-    }
+    },
+    horse: {
+        name: 'Horse',
+        description: 'Majestic and strong. Needs regular exercise and grooming.',
+        baseStats: { hunger: 80, cleanliness: 85, happiness: 90, energy: 95 },
+        difficultyLevel: 3,
+        unlockRequirement: 150,
+    },
+    phoenix: {
+        name: 'Phoenix',
+        description: 'Mythical fire bird. Requires special care and rises from its own ashes.',
+        baseStats: { hunger: 60, cleanliness: 80, happiness: 85, energy: 90, flame: 100 },
+        difficultyLevel: 5,
+        unlockRequirement: 500,
+    },
+    kraken: {
+        name: 'Kraken',
+        description: 'Legendary sea monster. Needs a large aquarium and lots of attention.',
+        baseStats: { hunger: 50, cleanliness: 70, happiness: 75, energy: 95, hydration: 100 },
+        difficultyLevel: 5,
+        unlockRequirement: 750,
+    },
 };
 
 // Achievement definitions
@@ -57,6 +78,88 @@ const ACHIEVEMENTS = {
         description: 'Unlock all pets',
         points: 200,
     },
+    horseWhisperer: {
+        id: 'horseWhisperer',
+        name: 'Horse Whisperer',
+        description: 'Successfully train your horse',
+        points: 100,
+    },
+    petVeterinarian: {
+        id: 'petVeterinarian',
+        name: 'Pet Veterinarian',
+        description: 'Cure your pet from an illness',
+        points: 150,
+    },
+    legendaryTamer: {
+        id: 'legendaryTamer',
+        name: 'Legendary Tamer',
+        description: 'Raise a mythical creature to level 10',
+        points: 500,
+    },
+    centenarian: {
+        id: 'centenarian',
+        name: 'Centenarian',
+        description: 'Keep a pet alive for 100 days',
+        points: 1000,
+    },
+};
+
+// Task definitions
+const TASKS = {
+    feed: {
+        name: 'Feed',
+        icon: 'fa-utensils',
+        affects: ['hunger'],
+        difficulty: 1,
+    },
+    clean: {
+        name: 'Clean',
+        icon: 'fa-shower',
+        affects: ['cleanliness'],
+        difficulty: 1,
+    },
+    play: {
+        name: 'Play',
+        icon: 'fa-futbol',
+        affects: ['happiness', 'energy'],
+        difficulty: 2,
+    },
+    exercise: {
+        name: 'Exercise',
+        icon: 'fa-running',
+        affects: ['happiness', 'energy'],
+        difficulty: 2,
+    },
+    groom: {
+        name: 'Groom',
+        icon: 'fa-brush',
+        affects: ['cleanliness', 'happiness'],
+        difficulty: 1,
+    },
+    train: {
+        name: 'Train',
+        icon: 'fa-dumbbell',
+        affects: ['happiness', 'energy'],
+        difficulty: 3,
+    },
+    veterinaryCheck: {
+        name: 'Vet Check',
+        icon: 'fa-stethoscope',
+        affects: ['health'],
+        difficulty: 4,
+    },
+    meditation: {
+        name: 'Meditation',
+        icon: 'fa-om',
+        affects: ['happiness', 'energy'],
+        difficulty: 3,
+    },
+    adventure: {
+        name: 'Adventure',
+        icon: 'fa-mountain',
+        affects: ['happiness', 'energy', 'experience'],
+        difficulty: 4,
+    },
 };
 
 // State management
@@ -67,6 +170,7 @@ let userProgress = JSON.parse(localStorage.getItem('petProgress')) || {
     unlockedPets: ['cat', 'dog'],
     achievements: [],
     lastActivity: null,
+    daysSinceAdoption: 0,
 };
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -132,7 +236,13 @@ function selectPet(petType) {
     }
 
     selectedPet = petType;
-    petState = { ...PETS[petType].baseStats };
+    petState = { 
+        ...PETS[petType].baseStats,
+        health: 100,
+        experience: 0,
+        level: 1,
+        daysSinceAdoption: 0,
+    };
     userProgress.achievements.length === 0 && awardAchievement('firstPet');
     saveState();
     renderActivePet();
@@ -159,7 +269,8 @@ function getPetIcon(petType) {
         dog: 'dog',
         rabbit: 'carrot',
         dragon: 'dragon',
-        unicorn: 'horse'
+        unicorn: 'horse',
+        horse: 'horse'
     };
     return icons[petType] || 'paw';
 }
@@ -190,13 +301,10 @@ function renderActionButtons() {
     const actionButtons = document.getElementById('action-buttons');
     actionButtons.innerHTML = '';
 
-    const feedButton = createButton('<i class="fas fa-utensils"></i> Feed', () => updateStat('hunger', 10));
-    const cleanButton = createButton('<i class="fas fa-shower"></i> Clean', () => updateStat('cleanliness', 10));
-    const playButton = createButton('<i class="fas fa-futbol"></i> Play', () => updateStat('happiness', 10));
-
-    actionButtons.appendChild(feedButton);
-    actionButtons.appendChild(cleanButton);
-    actionButtons.appendChild(playButton);
+    Object.entries(TASKS).forEach(([taskKey, task]) => {
+        const button = createButton(`<i class="fas ${task.icon}"></i> ${task.name}`, () => performTask(taskKey));
+        actionButtons.appendChild(button);
+    });
 }
 
 function createButton(html, onClick) {
@@ -205,6 +313,28 @@ function createButton(html, onClick) {
     button.innerHTML = html;
     button.onclick = onClick;
     return button;
+}
+
+function performTask(taskKey) {
+    const task = TASKS[taskKey];
+    const successChance = Math.random() > (task.difficulty * 0.1);
+    
+    if (successChance) {
+        task.affects.forEach(stat => {
+            updateStat(stat, 10 + Math.floor(Math.random() * 10));
+        });
+        petState.experience += task.difficulty * 5;
+        checkLevelUp();
+        showNotification(`${PETS[selectedPet].name} enjoyed the ${task.name}!`);
+    } else {
+        showNotification(`${PETS[selectedPet].name} didn't enjoy the ${task.name} this time.`);
+    }
+
+    petState.energy = Math.max(0, petState.energy - (task.difficulty * 5));
+    updateLastActivity();
+    renderStatusBars();
+    checkAchievements();
+    checkPetHealth();
 }
 
 function updateStat(stat, amount) {
@@ -223,6 +353,10 @@ function updateStat(stat, amount) {
         duration: 0.5,
         ease: "power2.out"
     });
+
+    checkUnlockablePets();
+    checkPerfectCare();
+    checkPetHealth();
 }
 
 function showNotification(message) {
@@ -235,6 +369,8 @@ function updateLastActivity() {
     userProgress.lastActivity = new Date().toLocaleString();
     document.getElementById('last-activity').textContent = `Last activity: ${userProgress.lastActivity}`;
     saveState();
+    simulateTimePassage();
+    randomEvent();
 }
 
 function awardAchievement(achievementId) {
@@ -249,5 +385,114 @@ function awardAchievement(achievementId) {
 }
 
 function updatePointsDisplay() {
-    document.getElementById('points').textContent = userProgress.points;
+    const pointsElement = document.getElementById('points');
+    gsap.to(pointsElement, {
+        textContent: userProgress.points,
+        duration: 1,
+        ease: "power1.out",
+        snap: { textContent: 1 },
+        onUpdate: function() {
+            pointsElement.textContent = Math.round(pointsElement.textContent);
+        }
+    });
+}
+
+function checkUnlockablePets() {
+    Object.entries(PETS).forEach(([petType, pet]) => {
+        if (!userProgress.unlockedPets.includes(petType) && userProgress.points >= pet.unlockRequirement) {
+            userProgress.unlockedPets.push(petType);
+            showNotification(`New pet unlocked: ${pet.name}!`);
+            renderPetSelection();
+        }
+    });
+    if (userProgress.unlockedPets.length === Object.keys(PETS).length) {
+        awardAchievement('masterCaretaker');
+    }
+}
+
+function checkPerfectCare() {
+    if (Object.values(petState).every(value => value > 90)) {
+        setTimeout(() => {
+            if (Object.values(petState).every(value => value > 90)) {
+                awardAchievement('perfectCare');
+            }
+        }, 24 * 60 * 60 * 1000); // 24 hours
+    }
+}
+
+function checkLevelUp() {
+    const experienceNeeded = petState.level * 150; // Increase experience needed
+    if (petState.experience >= experienceNeeded) {
+        petState.level++;
+        petState.experience -= experienceNeeded;
+        showNotification(`${PETS[selectedPet].name} leveled up to level ${petState.level}!`);
+        
+        // Increase stats slightly on level up
+        Object.keys(petState).forEach(stat => {
+            if (typeof petState[stat] === 'number' && stat !== 'level' && stat !== 'experience') {
+                petState[stat] = Math.min(petState[stat] + 5, 100);
+            }
+        });
+        
+        renderStatusBars();
+    }
+}
+
+function checkAchievements() {
+    if (selectedPet === 'horse' && petState.level >= 5) {
+        awardAchievement('horseWhisperer');
+    }
+    if (petState.health === 100 && petState.health < 50) {
+        awardAchievement('petVeterinarian');
+    }
+    if (['phoenix', 'kraken'].includes(selectedPet) && petState.level >= 10) {
+        awardAchievement('legendaryTamer');
+    }
+    if (petState.daysSinceAdoption >= 100) {
+        awardAchievement('centenarian');
+    }
+}
+
+function randomEvent() {
+    const events = [
+        { name: 'Illness', chance: 0.05, effect: () => { petState.health -= 20; } },
+        { name: 'Growth Spurt', chance: 0.1, effect: () => { petState.experience += 50; } },
+        { name: 'Energy Boost', chance: 0.15, effect: () => { petState.energy = 100; } },
+        { name: 'Magical Surge', chance: 0.05, effect: () => { petState.experience += 100; } },
+        { name: 'Mysterious Illness', chance: 0.03, effect: () => { petState.health -= 30; } },
+    ];
+
+    events.forEach(event => {
+        if (Math.random() < event.chance) {
+            event.effect();
+            showNotification(`${PETS[selectedPet].name} experienced a ${event.name}!`);
+            renderStatusBars();
+        }
+    });
+}
+
+function simulateTimePassage() {
+    petState.daysSinceAdoption++;
+    userProgress.daysSinceAdoption++;
+    
+    // Decrease stats over time
+    Object.keys(petState).forEach(stat => {
+        if (typeof petState[stat] === 'number' && stat !== 'level' && stat !== 'experience' && stat !== 'daysSinceAdoption') {
+            petState[stat] = Math.max(petState[stat] - 2, 0);
+        }
+    });
+    
+    renderStatusBars();
+    checkAchievements();
+    saveState();
+}
+
+function checkPetHealth() {
+    if (petState.health <= 0) {
+        showNotification(`${PETS[selectedPet].name} has fallen ill and needs immediate care!`);
+        // Disable all buttons except for 'Vet Check'
+        document.querySelectorAll('.button').forEach(button => {
+            button.disabled = button.textContent.trim() !== 'Vet Check';
+        });
+    }
 }
